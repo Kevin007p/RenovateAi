@@ -8,9 +8,14 @@ const openai = new OpenAI({
 // In-memory store for conversations (replace with database in production)
 const conversations = new Map<string, any[]>();
 
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export async function POST(req: Request) {
   try {
-    const { message, conversationId, description, timeline, currentImages = [], desiredImages = [], isInitial } = await req.json();
+    const { message, conversationId, description, timeline, currentImages = [], desiredImages = [], isInitial, messages = [] } = await req.json();
 
     // Get the base URL from the request
     const url = new URL(req.url);
@@ -124,6 +129,12 @@ Remember to:
     }
 
     try {
+      // Build conversation history for context
+      const conversationHistory = messages.map((msg: ChatMessage) => ({
+        role: msg.role,
+        content: msg.content
+      }));
+
       const completion = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
@@ -140,17 +151,28 @@ Your goals are to:
 Remember:
 - Be concise and direct
 - Provide a price range with every response
-- Each new piece of information should narrow the price range`
+- Each new piece of information should narrow the price range
+- ALWAYS include the price range in this exact format at the end of your response:
+  "Estimated Price Range: $X,XXX to $X,XXX"
+  For example: "Estimated Price Range: $15,000 to $25,000"
+- The price range should be the last line of your response`
           },
+          ...conversationHistory,
           { role: "user", content: message }
         ],
         temperature: 0.7
       });
 
       const content = completion.choices[0].message.content;
+      const priceRange = extractPriceRange(content);
+      
+      if (!priceRange) {
+        console.warn('No price range found in response:', content);
+      }
+
       return NextResponse.json({
         message: content,
-        priceRange: extractPriceRange(content)
+        priceRange
       });
     } catch (error) {
       console.error('OpenAI API Error:', error);

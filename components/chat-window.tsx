@@ -3,7 +3,9 @@
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { X } from "lucide-react"
+import { X, ArrowDown, ThumbsUp, Clock, ThumbsDown } from "lucide-react"
+import { ContactPopup } from "./ContactPopup"
+import { NotInterestedPopup } from "./NotInterestedPopup"
 
 interface Message {
   role: "user" | "assistant"
@@ -26,11 +28,30 @@ export function ChatWindow({ description, timeline, currentImages, desiredImages
   const [isTyping, setIsTyping] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [showDecisionButtons, setShowDecisionButtons] = useState(false)
+  const [showScrollButton, setShowScrollButton] = useState(false)
+  const [showContactPopup, setShowContactPopup] = useState(false)
+  const [showNotInterestedPopup, setShowNotInterestedPopup] = useState(false)
+  const [interestStatus, setInterestStatus] = useState<'interested' | 'thinking' | 'not_interested' | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    setShowScrollButton(false)
   }
+
+  useEffect(() => {
+    const container = messagesContainerRef.current
+    if (!container) return
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container
+      setShowScrollButton(scrollHeight - scrollTop - clientHeight > 100)
+    }
+
+    container.addEventListener('scroll', handleScroll)
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [])
 
   useEffect(() => {
     scrollToBottom()
@@ -99,8 +120,16 @@ export function ChatWindow({ description, timeline, currentImages, desiredImages
     if (onDecision) {
       onDecision(decision)
     }
+    
+    setInterestStatus(decision)
+    
+    if (decision === 'interested' || decision === 'thinking') {
+      setShowContactPopup(true)
+    } else if (decision === 'not_interested') {
+      setShowNotInterestedPopup(true)
+    }
+    
     setShowDecisionButtons(false)
-    // Disable the input and send button after a decision is made
     setInput("")
   }
 
@@ -124,7 +153,12 @@ export function ChatWindow({ description, timeline, currentImages, desiredImages
           description,
           timeline,
           currentImages: currentImages.map(file => URL.createObjectURL(file)),
-          desiredImages: desiredImages.map(file => URL.createObjectURL(file))
+          desiredImages: desiredImages.map(file => URL.createObjectURL(file)),
+          messages: messages.map(msg => ({
+            role: msg.role,
+            content: msg.content,
+            priceRange: msg.priceRange
+          }))
         })
       })
 
@@ -134,99 +168,145 @@ export function ChatWindow({ description, timeline, currentImages, desiredImages
       setMessages(prev => [...prev, { 
         role: "assistant", 
         content: data.message,
-        priceRange: data.priceRange
+        priceRange: data.priceRange || prev[prev.length - 1]?.priceRange
       }])
       setShowDecisionButtons(true)
     } catch (error) {
       console.error("Error sending message:", error)
-      setMessages(prev => [...prev, { role: "assistant", content: "I apologize, but I'm having trouble responding. Please try again." }])
+      setMessages(prev => [...prev, { 
+        role: "assistant", 
+        content: "I apologize, but I'm having trouble responding. Please try again.",
+        priceRange: prev[prev.length - 1]?.priceRange
+      }])
     } finally {
       setIsTyping(false)
     }
   }
 
   return (
-    <div className="flex flex-col h-[600px]">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Chat with AI</h3>
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto space-y-4 mb-4">
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`flex ${
-              message.role === "user" ? "justify-end" : "justify-start"
-            }`}
-          >
-            <div
-              className={`max-w-[80%] rounded-lg p-3 ${
-                message.role === "user"
-                  ? "bg-[#79072f] text-white"
-                  : "bg-gray-100 text-gray-900"
-              }`}
-            >
-              {message.content}
-              {message.priceRange && (
-                <div className="mt-2 text-sm font-medium">
-                  Estimated Price Range: ${message.priceRange.min.toLocaleString()} - ${message.priceRange.max.toLocaleString()}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-        {isTyping && (
-          <div className="flex justify-start">
-            <div className="bg-gray-100 text-gray-900 rounded-lg p-3">
-              <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100" />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200" />
-              </div>
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {showDecisionButtons && (
-        <div className="flex gap-2 mb-4">
-          <Button 
-            onClick={() => handleDecision('interested')}
-            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-          >
-            I'm Interested
-          </Button>
-          <Button 
-            onClick={() => handleDecision('thinking')}
-            className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white"
-          >
-            Still Thinking
-          </Button>
-          <Button 
-            onClick={() => handleDecision('not_interested')}
-            className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-          >
-            Not Interested
+    <>
+      <div className="flex flex-col h-[600px] relative">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Chat with AI</h3>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-4 w-4" />
           </Button>
         </div>
+
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto space-y-4 mb-4">
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={`flex ${
+                message.role === "user" ? "justify-end" : "justify-start"
+              }`}
+            >
+              <div
+                className={`max-w-[80%] rounded-lg p-3 ${
+                  message.role === "user"
+                    ? "bg-[#79072f] text-white"
+                    : "bg-gray-100 text-gray-900"
+                }`}
+              >
+                <div className="whitespace-pre-wrap">{message.content}</div>
+                {message.priceRange && (
+                  <div className="mt-2 p-2 bg-white/10 rounded-lg">
+                    <div className="text-sm font-medium text-[#79072f]">
+                      Estimated Price Range
+                    </div>
+                    <div className="text-lg font-bold">
+                      ${message.priceRange.min.toLocaleString()} - ${message.priceRange.max.toLocaleString()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+          {isTyping && (
+            <div className="flex justify-start">
+              <div className="bg-gray-100 text-gray-900 rounded-lg p-3">
+                <div className="flex items-center space-x-2">
+                  <div className="flex space-x-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100" />
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200" />
+                  </div>
+                  <span className="text-sm text-gray-500">RenovateAI is thinking...</span>
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {showScrollButton && (
+          <Button
+            onClick={scrollToBottom}
+            className="fixed bottom-24 right-8 bg-white border-2 border-[#79072f] text-[#79072f] rounded-full p-2 hover:bg-gray-50 shadow-lg"
+            size="icon"
+          >
+            <ArrowDown className="h-4 w-4" />
+          </Button>
+        )}
+
+        {showDecisionButtons && (
+          <div className="flex gap-2 mb-4">
+            <Button 
+              onClick={() => handleDecision('interested')}
+              className="flex-1 bg-[#79072f] hover:bg-[#5e0624] text-white"
+            >
+              <ThumbsUp className="mr-2 h-4 w-4" />
+              I'm Interested
+            </Button>
+            <Button 
+              onClick={() => handleDecision('thinking')}
+              className="flex-1 bg-[#79072f] hover:bg-[#5e0624] text-white"
+            >
+              <Clock className="mr-2 h-4 w-4" />
+              Still Thinking
+            </Button>
+            <Button 
+              onClick={() => handleDecision('not_interested')}
+              className="flex-1 bg-[#79072f] hover:bg-[#5e0624] text-white"
+            >
+              <ThumbsDown className="mr-2 h-4 w-4" />
+              Not Interested
+            </Button>
+          </div>
+        )}
+
+        <form onSubmit={handleSendMessage} className="flex gap-2">
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type your message..."
+            className="flex-1"
+          />
+          <Button type="submit" className="bg-[#79072f] hover:bg-[#5e0624] text-white">
+            Send
+          </Button>
+        </form>
+      </div>
+
+      {showContactPopup && (
+        <ContactPopup 
+          type={interestStatus === 'interested' ? 'interested' : 'thinking'}
+          onClose={() => {
+            setShowContactPopup(false)
+            onClose()
+          }} 
+        />
       )}
 
-      <form onSubmit={handleSendMessage} className="flex gap-2">
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type your message..."
-          className="flex-1"
+      {showNotInterestedPopup && (
+        <NotInterestedPopup 
+          onClose={() => {
+            setShowNotInterestedPopup(false)
+            onClose()
+          }} 
         />
-        <Button type="submit" className="bg-[#79072f] hover:bg-[#5e0624] text-white">
-          Send
-        </Button>
-      </form>
-    </div>
+      )}
+    </>
   )
 }
 

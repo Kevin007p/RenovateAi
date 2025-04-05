@@ -80,8 +80,8 @@ export default function SummaryCard({
             disabled={isSubmitting || interestStatus !== null}
             className={`px-6 py-3 rounded-lg transition-colors ${
               interestStatus === 'interested'
-                ? 'bg-green-600 text-white'
-                : 'bg-green-100 text-green-800 hover:bg-green-200'
+                ? 'bg-[#79072f] text-white'
+                : 'bg-[#79072f]/10 text-[#79072f] hover:bg-[#79072f]/20'
             } ${isSubmitting || interestStatus !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             Interested
@@ -92,8 +92,8 @@ export default function SummaryCard({
             disabled={isSubmitting || interestStatus !== null}
             className={`px-6 py-3 rounded-lg transition-colors ${
               interestStatus === 'waiting'
-                ? 'bg-yellow-600 text-white'
-                : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                ? 'bg-[#79072f] text-white'
+                : 'bg-[#79072f]/10 text-[#79072f] hover:bg-[#79072f]/20'
             } ${isSubmitting || interestStatus !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             Waiting
@@ -104,8 +104,8 @@ export default function SummaryCard({
             disabled={isSubmitting || interestStatus !== null}
             className={`px-6 py-3 rounded-lg transition-colors ${
               interestStatus === 'not_interested'
-                ? 'bg-red-600 text-white'
-                : 'bg-red-100 text-red-800 hover:bg-red-200'
+                ? 'bg-[#79072f] text-white'
+                : 'bg-[#79072f]/10 text-[#79072f] hover:bg-[#79072f]/20'
             } ${isSubmitting || interestStatus !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             Not Interested
