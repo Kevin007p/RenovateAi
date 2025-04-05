@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { X, ArrowDown, ThumbsUp, Clock, ThumbsDown } from "lucide-react"
 import { ContactPopup } from "./ContactPopup"
 import { NotInterestedPopup } from "./NotInterestedPopup"
+import { saveProject } from '@/lib/saveProject'
 
 interface Message {
   role: "user" | "assistant"
@@ -116,12 +117,37 @@ export function ChatWindow({ description, timeline, currentImages, desiredImages
     initializeChat()
   }, [description, timeline, currentImages, desiredImages])
 
-  const handleDecision = (decision: 'interested' | 'thinking' | 'not_interested') => {
+  const handleDecision = async (decision: 'interested' | 'thinking' | 'not_interested') => {
     if (onDecision) {
       onDecision(decision)
     }
     
     setInterestStatus(decision)
+    
+    // Get the latest price range from messages
+    const lastMessageWithPrice = [...messages].reverse().find(msg => msg.priceRange)
+    const priceRange = lastMessageWithPrice?.priceRange
+
+    try {
+      // Save project data to Supabase
+      await saveProject({
+        renovationType: description.toLowerCase().includes('kitchen') ? 'kitchen' :
+                       description.toLowerCase().includes('bathroom') ? 'bathroom' :
+                       description.toLowerCase().includes('basement') ? 'basement' :
+                       description.toLowerCase().includes('garden') ? 'garden' :
+                       description.toLowerCase().includes('roof') ? 'roof' : 'other',
+        initialPrompt: description,
+        minPrice: priceRange?.min,
+        maxPrice: priceRange?.max,
+        interestLevel: decision,
+        estimatedTimeline: timeline || undefined,
+        currentImages,
+        desiredImages,
+      })
+    } catch (error) {
+      console.error('Error saving project:', error)
+      // Continue with the flow even if save fails
+    }
     
     if (decision === 'interested' || decision === 'thinking') {
       setShowContactPopup(true)
