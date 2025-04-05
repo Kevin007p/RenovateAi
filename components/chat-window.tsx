@@ -8,6 +8,7 @@ import { X } from "lucide-react"
 interface Message {
   role: "user" | "assistant"
   content: string
+  priceRange?: { min: number; max: number }
 }
 
 interface ChatWindowProps {
@@ -16,13 +17,15 @@ interface ChatWindowProps {
   currentImages: File[]
   desiredImages: File[]
   onClose: () => void
+  onDecision?: (decision: 'interested' | 'thinking' | 'not_interested') => void
 }
 
-export function ChatWindow({ description, timeline, currentImages, desiredImages, onClose }: ChatWindowProps) {
+export function ChatWindow({ description, timeline, currentImages, desiredImages, onClose, onDecision }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [isTyping, setIsTyping] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
+  const [showDecisionButtons, setShowDecisionButtons] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -38,14 +41,35 @@ export function ChatWindow({ description, timeline, currentImages, desiredImages
     const initializeChat = async () => {
       setIsTyping(true)
       try {
+        // Convert images to base64
+        const currentBase64Images = await Promise.all(
+          currentImages.map(file => {
+            return new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.readAsDataURL(file);
+            });
+          })
+        );
+
+        const desiredBase64Images = await Promise.all(
+          desiredImages.map(file => {
+            return new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.readAsDataURL(file);
+            });
+          })
+        );
+
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             description,
             timeline,
-            currentImages: currentImages.length,
-            desiredImages: desiredImages.length,
+            currentImages: currentBase64Images,
+            desiredImages: desiredBase64Images,
             isInitial: true
           })
         })
@@ -54,7 +78,12 @@ export function ChatWindow({ description, timeline, currentImages, desiredImages
 
         const data = await response.json()
         setConversationId(data.conversationId)
-        setMessages([{ role: "assistant", content: data.message }])
+        setMessages([{ 
+          role: "assistant", 
+          content: data.message,
+          priceRange: data.priceRange
+        }])
+        setShowDecisionButtons(true)
       } catch (error) {
         console.error("Error initializing chat:", error)
         setMessages([{ role: "assistant", content: "I apologize, but I'm having trouble starting our conversation. Please try again." }])
@@ -64,16 +93,26 @@ export function ChatWindow({ description, timeline, currentImages, desiredImages
     }
 
     initializeChat()
-  }, [description, timeline, currentImages.length, desiredImages.length])
+  }, [description, timeline, currentImages, desiredImages])
+
+  const handleDecision = (decision: 'interested' | 'thinking' | 'not_interested') => {
+    if (onDecision) {
+      onDecision(decision)
+    }
+    setShowDecisionButtons(false)
+    // Disable the input and send button after a decision is made
+    setInput("")
+  }
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim()) return
+    if (!input.trim() || !conversationId) return
 
     const userMessage = input.trim()
     setInput("")
     setMessages(prev => [...prev, { role: "user", content: userMessage }])
     setIsTyping(true)
+    setShowDecisionButtons(false)
 
     try {
       const response = await fetch("/api/chat", {
@@ -84,15 +123,20 @@ export function ChatWindow({ description, timeline, currentImages, desiredImages
           conversationId,
           description,
           timeline,
-          currentImages: currentImages.length,
-          desiredImages: desiredImages.length
+          currentImages: currentImages.map(file => URL.createObjectURL(file)),
+          desiredImages: desiredImages.map(file => URL.createObjectURL(file))
         })
       })
 
       if (!response.ok) throw new Error("Failed to send message")
 
       const data = await response.json()
-      setMessages(prev => [...prev, { role: "assistant", content: data.message }])
+      setMessages(prev => [...prev, { 
+        role: "assistant", 
+        content: data.message,
+        priceRange: data.priceRange
+      }])
+      setShowDecisionButtons(true)
     } catch (error) {
       console.error("Error sending message:", error)
       setMessages(prev => [...prev, { role: "assistant", content: "I apologize, but I'm having trouble responding. Please try again." }])
@@ -126,6 +170,11 @@ export function ChatWindow({ description, timeline, currentImages, desiredImages
               }`}
             >
               {message.content}
+              {message.priceRange && (
+                <div className="mt-2 text-sm font-medium">
+                  Estimated Price Range: ${message.priceRange.min.toLocaleString()} - ${message.priceRange.max.toLocaleString()}
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -142,6 +191,29 @@ export function ChatWindow({ description, timeline, currentImages, desiredImages
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {showDecisionButtons && (
+        <div className="flex gap-2 mb-4">
+          <Button 
+            onClick={() => handleDecision('interested')}
+            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+          >
+            I'm Interested
+          </Button>
+          <Button 
+            onClick={() => handleDecision('thinking')}
+            className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white"
+          >
+            Still Thinking
+          </Button>
+          <Button 
+            onClick={() => handleDecision('not_interested')}
+            className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+          >
+            Not Interested
+          </Button>
+        </div>
+      )}
 
       <form onSubmit={handleSendMessage} className="flex gap-2">
         <Input

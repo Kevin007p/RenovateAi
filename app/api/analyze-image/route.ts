@@ -7,7 +7,11 @@ const openai = new OpenAI({
 
 export async function POST(request: Request) {
   try {
-    const { base64Image } = await request.json();
+    const { base64Image, isCurrentState } = await request.json();
+
+    const prompt = isCurrentState 
+      ? "Analyze this image of the current state and provide a detailed description focusing on: 1) Room dimensions and layout 2) Existing materials and finishes 3) Visible wear, damage, or issues 4) Current fixtures and appliances 5) Any structural elements that might need attention. Be specific about measurements and material conditions."
+      : "Analyze this image of the desired state and provide a detailed description focusing on: 1) New layout and design elements 2) Desired materials and finishes 3) New fixtures and appliances 4) Any structural changes needed 5) Special features or upgrades. Be specific about the design style and quality level of materials.";
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -17,7 +21,7 @@ export async function POST(request: Request) {
           content: [
             {
               type: "text",
-              text: "Analyze this image and provide a detailed description focusing on the room's current state, materials, and any visible issues or features that would be relevant for a renovation estimate. Be specific about dimensions, materials, and any visible wear or damage."
+              text: prompt
             },
             {
               type: "image_url",

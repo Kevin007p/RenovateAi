@@ -12,6 +12,10 @@ export async function POST(req: Request) {
   try {
     const { message, conversationId, description, timeline, currentImages = [], desiredImages = [], isInitial } = await req.json();
 
+    // Get the base URL from the request
+    const url = new URL(req.url);
+    const baseUrl = `${url.protocol}//${url.host}`;
+
     if (isInitial) {
       let currentStateAnalysis = [];
       let desiredStateAnalysis = [];
@@ -22,10 +26,13 @@ export async function POST(req: Request) {
           currentStateAnalysis = await Promise.all(
             currentImages.map(async (image: string) => {
               try {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/analyze-image`, {
+                const response = await fetch(`${baseUrl}/api/analyze-image`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ base64Image: image })
+                  body: JSON.stringify({ 
+                    base64Image: image,
+                    isCurrentState: true 
+                  })
                 });
                 if (!response.ok) throw new Error('Image analysis failed');
                 const data = await response.json();
@@ -43,10 +50,13 @@ export async function POST(req: Request) {
           desiredStateAnalysis = await Promise.all(
             desiredImages.map(async (image: string) => {
               try {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/analyze-image`, {
+                const response = await fetch(`${baseUrl}/api/analyze-image`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ base64Image: image })
+                  body: JSON.stringify({ 
+                    base64Image: image,
+                    isCurrentState: false 
+                  })
                 });
                 if (!response.ok) throw new Error('Image analysis failed');
                 const data = await response.json();
@@ -65,50 +75,47 @@ export async function POST(req: Request) {
 
       const initialPrompt = `You are a renovation expert AI assistant having a natural conversation with a homeowner. The user has provided:
 
-Current State Analysis:
-${currentStateAnalysis.length > 0 ? currentStateAnalysis.join('\n\n') : 'No current state images provided'}
+${currentImages.length > 0 ? `Current State Analysis:
+${currentStateAnalysis.join('\n\n')}` : 'No current state images provided'}
 
-Desired State Analysis:
-${desiredStateAnalysis.length > 0 ? desiredStateAnalysis.join('\n\n') : 'No desired state images provided'}
+${desiredImages.length > 0 ? `Desired State Analysis:
+${desiredStateAnalysis.join('\n\n')}` : 'No desired state images provided'}
 
 User's Description: ${description}
 Timeline: ${timeline || 'flexible'}
 
 Your role is to:
-1. Start with a friendly greeting and acknowledge their renovation project
-2. Ask specific questions to gather information needed for an accurate estimate
-3. After 4-5 exchanges, provide a rough price range based on the information gathered
-4. Continue the conversation to refine the estimate or discuss additional options
-5. Be conversational and natural in your responses
-6. Don't use rigid templates or hardcoded formats
-7. Be understanding of any typos or informal language
-
-Key points to discuss:
-- Specific materials and finishes
-- Room dimensions and layout changes
-- Any structural modifications needed
-- Quality level of materials (budget, mid-range, luxury)
-- Any special requirements or preferences
-- Local labor costs and availability
+1. Start with a brief greeting and acknowledge their renovation project
+2. If images were provided:
+   - Briefly summarize what you see in the current state (if provided)
+   - Briefly summarize the desired changes (if provided)
+   - Compare the two states if both are provided
+3. Provide an initial rough price range based on available information
+4. Ask ONE specific question to gather more details
+5. After each response:
+   - Provide an updated price range based on all information so far
+   - End with: "Feel free to provide more information to get a more precise price range or select one of the options below."
 
 Remember to:
-- Be empathetic and professional
+- Be concise and direct
 - Ask one question at a time
-- Provide context for your questions
-- Give rough estimates when you have enough information
-- Keep the conversation open for more details
-- Be clear about what factors might affect the final price`;
+- Provide a price range with every response
+- Each new piece of information should narrow the price range
+- Don't assume details that weren't provided in images
+- If no images were provided, focus on gathering information through conversation`;
 
       try {
         const completion = await openai.chat.completions.create({
-          model: "gpt-4-turbo-preview",
+          model: "gpt-4o",
           messages: [{ role: "system", content: initialPrompt }],
           temperature: 0.7
         });
 
+        const content = completion.choices[0].message.content;
         return NextResponse.json({
           conversationId: Date.now().toString(),
-          message: completion.choices[0].message.content
+          message: content,
+          priceRange: extractPriceRange(content)
         });
       } catch (error) {
         console.error('OpenAI API Error:', error);
@@ -118,37 +125,32 @@ Remember to:
 
     try {
       const completion = await openai.chat.completions.create({
-        model: "gpt-4-turbo-preview",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
             content: `You are a renovation expert AI assistant continuing a conversation about a renovation project. 
 
 Your goals are to:
-1. Continue gathering information to refine the cost estimate
-2. If you have enough information, provide a price range
-3. Keep the conversation open for more details or additional options
-4. Be conversational and natural
-5. Focus on understanding the user's needs
-6. When the conversation naturally concludes, remind the user they can:
-   - Click "Interested" if they want to proceed with the renovation
-   - Click "Waiting" if they want to think about it
-   - Click "Not Interested" if they don't want to proceed
+1. Keep responses concise (2-3 sentences max)
+2. Ask one specific question at a time
+3. With every response, provide an updated price range based on all information gathered so far
+4. End with: "Feel free to provide more information to get a more precise price range or select one of the options below."
 
 Remember:
-- Be clear about what factors might affect the final price
-- Discuss any additional options or upgrades
-- Keep the tone friendly and professional
-- Be understanding of informal language
-- Don't mention the options until the conversation naturally concludes`
+- Be concise and direct
+- Provide a price range with every response
+- Each new piece of information should narrow the price range`
           },
           { role: "user", content: message }
         ],
         temperature: 0.7
       });
 
+      const content = completion.choices[0].message.content;
       return NextResponse.json({
-        message: completion.choices[0].message.content
+        message: content,
+        priceRange: extractPriceRange(content)
       });
     } catch (error) {
       console.error('OpenAI API Error:', error);
@@ -161,4 +163,16 @@ Remember:
       { status: 500 }
     );
   }
+}
+
+function extractPriceRange(text: string | null): { min: number; max: number } | null {
+  if (!text) return null;
+  const priceMatch = text.match(/\$(\d+,\d+|\d+)\s*to\s*\$(\d+,\d+|\d+)/);
+  if (priceMatch) {
+    return {
+      min: parseInt(priceMatch[1].replace(/,/g, '')),
+      max: parseInt(priceMatch[2].replace(/,/g, ''))
+    };
+  }
+  return null;
 } 
