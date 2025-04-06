@@ -1,6 +1,11 @@
 # Renovate - Home Improvement Project Management
 
-A modern web application for managing home improvement projects, built with Next.js and Supabase. This app helps homeowners track and manage their renovation projects, from planning to completion.
+A modern web application for managing home improvement projects, built with Next.js and Supabase. This app serves two key user groups:
+
+- **Homeowners**: Track and manage your renovation projects, from planning to completion
+- **Contractors & Companies**: Access and manage your leads through the Supabase dashboard, streamline client communication, and track project progress
+
+The platform facilitates seamless collaboration between homeowners and contractors, making home improvement projects more efficient and transparent.
 
 ## Features
 
@@ -10,6 +15,7 @@ A modern web application for managing home improvement projects, built with Next
 - Real-time Updates: Powered by Supabase for instant data synchronization
 - Modern UI: Built with Next.js and styled with Tailwind CSS
 - AI Integration: Powered by GPT-4V for image recognition and intelligent project assistance
+- Lead Management: Contractors can view and manage potential clients through Supabase
 
 ## Tech Stack
 
