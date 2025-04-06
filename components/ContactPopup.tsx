@@ -57,7 +57,7 @@ export function ContactPopup({ onClose, type }: ContactPopupProps) {
               className="text-[#79072f] p-0 h-auto"
               onClick={handleEmailClick}
             >
-              defaultemail@gmail.com
+              kkevinpatel07@gmail.com
             </Button>
           </div>
         </div>
