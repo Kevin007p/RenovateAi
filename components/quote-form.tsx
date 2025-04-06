@@ -23,6 +23,17 @@ export function QuoteForm() {
   const [timeline, setTimeline] = useState("")
   const [showChat, setShowChat] = useState(false)
 
+  // Reset function to clear the form
+  const resetForm = () => {
+    setImages({
+      current: [],
+      desired: []
+    })
+    setDescription("")
+    setTimeline("")
+    setShowChat(false)
+  }
+
   const handleStartChat = () => {
     if (description.trim()) {
       setShowChat(true)
@@ -39,7 +50,7 @@ export function QuoteForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="current-upload" className="text-gray-700 font-medium">
-                  Current State Images
+                  Current State Images (optional)
                 </Label>
                 <UploadZone
                   images={images.current}
@@ -51,7 +62,7 @@ export function QuoteForm() {
 
               <div className="space-y-2">
                 <Label htmlFor="desired-upload" className="text-gray-700 font-medium">
-                  Desired State Images
+                  Desired State Images (optional)
                 </Label>
                 <UploadZone
                   images={images.desired}
@@ -101,7 +112,7 @@ export function QuoteForm() {
             timeline={timeline}
             currentImages={images.current}
             desiredImages={images.desired}
-            onClose={() => setShowChat(false)}
+            onClose={resetForm}
           />
         )}
       </div>

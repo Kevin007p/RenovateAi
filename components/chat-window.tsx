@@ -7,6 +7,7 @@ import { X, ArrowDown, ThumbsUp, Clock, ThumbsDown } from "lucide-react"
 import { ContactPopup } from "./ContactPopup"
 import { NotInterestedPopup } from "./NotInterestedPopup"
 import { saveProject } from '@/lib/saveProject'
+import { useRouter } from 'next/navigation'
 
 interface Message {
   role: "user" | "assistant"
@@ -35,6 +36,7 @@ export function ChatWindow({ description, timeline, currentImages, desiredImages
   const [interestStatus, setInterestStatus] = useState<'interested' | 'thinking' | 'not_interested' | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -209,11 +211,19 @@ export function ChatWindow({ description, timeline, currentImages, desiredImages
     }
   }
 
+  const handlePopupClose = () => {
+    setShowContactPopup(false)
+    setShowNotInterestedPopup(false)
+    onClose()
+    router.push('/')
+    router.refresh()
+  }
+
   return (
     <>
       <div className="flex flex-col h-[600px] relative">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Chat with AI</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Chat with RenovateAI</h3>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
@@ -317,19 +327,13 @@ export function ChatWindow({ description, timeline, currentImages, desiredImages
       {showContactPopup && (
         <ContactPopup 
           type={interestStatus === 'interested' ? 'interested' : 'thinking'}
-          onClose={() => {
-            setShowContactPopup(false)
-            onClose()
-          }} 
+          onClose={handlePopupClose}
         />
       )}
 
       {showNotInterestedPopup && (
         <NotInterestedPopup 
-          onClose={() => {
-            setShowNotInterestedPopup(false)
-            onClose()
-          }} 
+          onClose={handlePopupClose}
         />
       )}
     </>

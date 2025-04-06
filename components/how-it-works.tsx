@@ -9,10 +9,10 @@ export function HowItWorks() {
             <div className="w-8 h-8 bg-[#79072f] text-white rounded-full flex items-center justify-center font-bold mr-3">
               1
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">Upload & Describe</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Share Your Vision</h3>
           </div>
           <p className="text-gray-600">
-            Upload images of your current space and desired outcome, then describe your renovation vision.
+            Upload before & after inspiration photos, describe your renovation goals, and set your preferred timeline.
           </p>
         </div>
 
@@ -22,10 +22,10 @@ export function HowItWorks() {
             <div className="w-8 h-8 bg-[#79072f] text-white rounded-full flex items-center justify-center font-bold mr-3">
               2
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">Chat with AI</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Get Instant Estimates</h3>
           </div>
           <p className="text-gray-600">
-            Our AI analyzes your project and provides a detailed estimate through an interactive chat.
+            Our AI analyzes your photos and requirements, providing real-time price estimates and answering your questions.
           </p>
         </div>
 
@@ -35,10 +35,10 @@ export function HowItWorks() {
             <div className="w-8 h-8 bg-[#79072f] text-white rounded-full flex items-center justify-center font-bold mr-3">
               3
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">Get Connected</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Choose Your Path</h3>
           </div>
           <p className="text-gray-600">
-            If you're interested, we'll connect you with qualified contractors to bring your vision to life.
+            Decide if you're ready to proceed, need time to think, or want to explore other options. We'll guide you accordingly.
           </p>
         </div>
       </div>
