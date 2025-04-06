@@ -1,3 +1,6 @@
+'use client';
+
+
 import { saveProject } from '@/lib/saveProject';
 
 export default function TestSave() {
