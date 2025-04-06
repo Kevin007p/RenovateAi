@@ -11,7 +11,7 @@ interface ContactPopupProps {
 
 export function ContactPopup({ onClose, type }: ContactPopupProps) {
   const handleEmailClick = () => {
-    window.location.href = "mailto:defaultemail@gmail.com";
+    window.location.href = "mailto:kkevinpatel07@gmail.com";
   };
 
   const getTitle = () => {
